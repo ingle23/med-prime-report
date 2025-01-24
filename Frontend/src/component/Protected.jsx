@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 const ProtectedRoute = () => {
   const [message, setMessage] = useState('');
+  // const [role, setRole] = useState('');
   const navigate = useNavigate();
   const token = localStorage.getItem('token'); 
   
@@ -16,19 +17,19 @@ const ProtectedRoute = () => {
         {
           headers: { Authorization: `Bearer ${token}` },
         });
-        // const role = response.data.role
-        console.log(response.data);
-        console.log("Protected run ");
+        
+        // setRole(response.data.role)
+        const role = response.data.role
         setMessage(response.data.msg);
-        // if(role == 'admin'){
-        //   navigate('/admindashboard');
-        // }
-        // else if(role == 'doctor'){
-        //   navigate('/doctordashboard')
-        // }
-        // else {
-        //   navigate('/techniciandashboard')
-        // }
+        if(role == 'Admin'){
+          navigate('/admindashboard',{ state: { role : role } });
+        }
+        else if(role == 'Doctor'){
+          navigate('/doctordashboard', { state: { role : role  } });
+        }
+        else {
+          navigate('/techniciandashboard',{ state: { role : role  } })
+        }
         
        
       } catch (error) {
@@ -41,7 +42,11 @@ const ProtectedRoute = () => {
   fetchData();
   }, [token, navigate]); 
 
-  return <div><p>{message}</p></div>;
+  return (
+    <div>{message}
+    {/* <p>Role : {role}</p> */}
+    </div>
+  )
 };
 
 export default ProtectedRoute;
