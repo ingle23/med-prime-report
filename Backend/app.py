@@ -1,7 +1,7 @@
 from flask import Flask,request,jsonify
 from flask_cors import CORS
-# from flask_jwt_extended import JWTManager,decode_token,jwt_required, create_access_token,jwt_required, get_jwt_identity
-from Blacklist import Blacklist 
+from flask_jwt_extended import JWTManager,decode_token,jwt_required, create_access_token,jwt_required, get_jwt_identity,get_jwt
+
 import jwt
 import psycopg2
 from flask_bcrypt import Bcrypt, check_password_hash,generate_password_hash
@@ -9,11 +9,11 @@ import json
 
 
 app = Flask(__name__)
-# app.config['JWT_SECRET_KEY'] = 'Y-UUH2tPWWSfuiF4'  
+app.config['JWT_SECRET_KEY'] = 'Y-UUH2tPWWSfuiF4'  
 SECRET_KEY = 'Y-UUH2tPWWSfuiF4' 
-# jwt = JWTManager(app)
+jwt = JWTManager(app)
 CORS(app)
-# Blacklist = set()
+Blacklist = set()
 
 def get_db_connection():
     conn = psycopg2.connect(
@@ -80,37 +80,35 @@ def login():
     if not user or not check_password_hash(user[2], password):  
         return jsonify({"msg": "Invalid credentials"}), 401
 
-    # identity=json.dumps({'username': user[1], 'role': user[3]})
-    # access_token = create_access_token(identity= identity)
+    identity=json.dumps({'username': user[1], 'role': user[3]})
+    access_token = create_access_token(identity= identity)
 
-    payload = {'username': user[1], 'role': user[3]}
-    access_token =jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+   
     return jsonify(access_token=access_token, role= user[3])
 
 
 
 @app.route('/protected', methods=['GET','POST'])
+@jwt_required()
 def protected():
-    token = None
-    if 'Authorization' in request.headers:
-        auth = request.headers["Authorization"].split(" ")
-        token = auth[1]
-    if token in Blacklist:
-        return jsonify({'message': 'Token is Blacklisted'}), 403
-         
-    if not token:
-        return jsonify({'message': 'Token is missing!'}), 401
 
+    auth = request.headers["Authorization"].split(" ")
+    token = auth[1]
+    if token in Blacklist:
+        return jsonify({"msg": "Token has been blacklisted. Please log in again."}), 403
+
+    decoded_token = get_jwt_identity()
+    print(token)
     try:
-        decoded_payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+        decoded_payload = json.loads(decoded_token)
         role = decoded_payload['role']
         return jsonify({'message': f'Hello {decoded_payload['username']}, you are authorized!', 'role': role}), 200
-
-    except jwt.InvalidTokenError:
+    except :
         return jsonify({'message': 'Invalid token!'}), 401
 
 
 @app.route('/logout', methods=['POST'])
+@jwt_required()
 def logout():
     auth = request.headers["Authorization"].split(" ")
     token = auth[1]

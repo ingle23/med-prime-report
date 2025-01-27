@@ -7,7 +7,6 @@ import ProtectedRoute from "./component/Protected";
 import AdminDashboard from "./dashboard/AdminDashboard";
 import DoctorDashboard from "./dashboard/DoctorDashboard";
 import TechnicianDashboard from "./dashboard/TechnicianDashboard";
-
 import "./App.css";
 
 

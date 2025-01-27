@@ -19,7 +19,7 @@ const Login = () => {
 
       const token = response.data.access_token;
       const role = response.data.role;
-
+      
       if (token) {
         localStorage.setItem("token", token);
         navigate("/protected");
