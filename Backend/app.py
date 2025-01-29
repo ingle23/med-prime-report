@@ -6,6 +6,8 @@ import jwt
 import psycopg2
 from flask_bcrypt import Bcrypt, check_password_hash,generate_password_hash
 import json
+from flask_pymongo import PyMongo
+from bson import ObjectId
 
 
 app = Flask(__name__)
@@ -14,6 +16,9 @@ SECRET_KEY = 'Y-UUH2tPWWSfuiF4'
 jwt = JWTManager(app)
 CORS(app)
 Blacklist = set()
+
+app.config["MONGO_URI"] = "mongodb://localhost:27017/Medprime_Report_db"
+mongo = PyMongo(app)
 
 def get_db_connection():
     conn = psycopg2.connect(
@@ -24,6 +29,20 @@ def get_db_connection():
         port="5432"
     )
     return conn
+
+# Searialized Data For ObjectId
+def serialize_document(doc):
+    """Recursively converts all ObjectId fields to strings."""
+    for key, value in doc.items():
+        if isinstance(value, ObjectId):
+            doc[key] = str(value)  
+        elif isinstance(value, dict): 
+            serialize_document(value)
+        elif isinstance(value, list):  
+            for item in value:
+                if isinstance(item, dict):
+                    serialize_document(item)
+    return doc
 
 
 @app.route('/register', methods=['POST'])
@@ -96,9 +115,7 @@ def protected():
     token = auth[1]
     if token in Blacklist:
         return jsonify({"msg": "Token has been blacklisted. Please log in again."}), 403
-
     decoded_token = get_jwt_identity()
-    print(token)
     try:
         decoded_payload = json.loads(decoded_token)
         role = decoded_payload['role']
@@ -110,11 +127,13 @@ def protected():
 @app.route('/logout', methods=['POST'])
 @jwt_required()
 def logout():
-    auth = request.headers["Authorization"].split(" ")
-    token = auth[1]
-    Blacklist.add(token) 
-    print(Blacklist)
-    return jsonify({'message':'Logout Soccessfully'})
+    try:
+        auth = request.headers["Authorization"].split(" ")
+        token = auth[1]
+        Blacklist.add(token) 
+        return jsonify({'message':'Logout Soccessfully'})
+    except Exception as e:
+        return jsonify(e)
 
 
 
@@ -128,6 +147,63 @@ def adminPage():
     conn.close()
 
     return jsonify(users= user)
+
+@app.route('/addpatient', methods = ['POST'])
+def Add_data():
+    # generated_id = ''
+    data = request.json
+    
+    result = mongo.db.PatientInfo.insert_one(data)
+    # generated_id = str(result.inserted_id)
+    # print(generated_id)                   
+    return jsonify({"message" : "Document add Successfully "}),201
+
+@app.route('/addreport', methods = ['POST'])
+def Add_report():
+    data = request.json
+    get_data= mongo.db.Report_Data.insert_one(data)
+    # get_id = data.reportId
+    # mongo.db.PatientInfo.update_one(
+    #     {"_id": ObjectId(generated_id)},
+    #     {"$push" : {"reportId" : get_id}}
+    # )
+    # print("done")
+
+    return jsonify({"message" : "Document add Successfully "}),201
+
+
+
+@app.route('/getpatientdata', methods = ['POST',"GET"])
+def Get_data():    
+    # result = mongo.db.PatientInfo.find() 
+    result = list(mongo.db.PatientInfo.aggregate([
+        {
+            "$lookup": {
+            "from": "Report_Data",
+            "localField": "reportId",
+            "foreignField": "reportId",
+            "as": "reports"
+            }
+        }
+    ]))
+    # result_list = []
+    # result_list = [serialize_document(item) for item in result]
+    for item in result:
+        serialize_document(item)
+        for report in item.get("Report_Data", []):
+            report["_id"] = str(report["_id"])
+
+    return jsonify({"result" : result}),201
+
+
+@app.route('/getreportdata', methods = ['POST',"GET"])
+def Get_report_data():    
+    result = mongo.db.PatientInfo.find()
+    result_list = []
+    result_list = [serialize_document(item) for item in result]            
+    return jsonify({"result" : result_list}),201
+
+
 
 
 if __name__ == '__main__':

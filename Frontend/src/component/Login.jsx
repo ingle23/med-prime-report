@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 
-const Login = () => {
+const Login = ({setAuthentication}) => {
   const [username, setUserName] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -10,6 +10,7 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setAuthentication(true);
 
     try {
       const response = await axios.post("http://localhost:5000/login", {
